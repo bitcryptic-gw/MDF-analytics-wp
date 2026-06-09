@@ -45,6 +45,8 @@ That's it. The plugin starts logging immediately.
 
 ## Dashboard
 
+![MDF Analytics dashboard](screenshots/dashboard.png)
+
 ### Stat cards
 
 | Card | What it means |
