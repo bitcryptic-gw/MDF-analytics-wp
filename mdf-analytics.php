@@ -3,7 +3,7 @@
  * Plugin Name: MDF Analytics
  * Plugin URI:  https://github.com/bitcryptic-gw/mdf
  * Description: Tracks AI agent traffic and Accept: text/markdown requests. Phase 1 of MDF (Markdown First) ecosystem support — visibility dashboard with estimated earnings. No content modification, no payment processing.
- * Version:     0.1.1
+ * Version:     0.1.2
  * Author:      Gary Walker (BitCryptic™) & Graham Hall (Slepner)
  * Author URI:  https://bitcryptic.com
  * License:     MIT
@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 // Constants
 // ---------------------------------------------------------------------------
 
-define( 'MDF_VERSION',    '0.1.1' );
+define( 'MDF_VERSION',    '0.1.2' );
 define( 'MDF_TABLE',      'mdf_requests' );
 define( 'MDF_LOG_DAYS',   90 );       // retention window
 define( 'MDF_PURGE_FREQ', 'daily' );  // WP-Cron schedule
@@ -152,7 +152,8 @@ function mdf_log_request(): void {
     $accept         = isset( $_SERVER['HTTP_ACCEPT'] )      ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) )      : '';
     $method         = isset( $_SERVER['REQUEST_METHOD'] )   ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) )   : 'GET';
     $wants_markdown = ( stripos( $accept, 'text/markdown' ) !== false ) ? 1 : 0;
-    $visitor_type   = mdf_classify_ua( $ua );
+
+    [ 'type' => $visitor_type, 'snippet' => $ua_snippet ] = mdf_classify_ua_with_snippet( $ua );
 
     // Only log agents and markdown-requesting clients; skip ordinary human browsers
     // to keep the table lean and the data meaningful.
@@ -160,60 +161,76 @@ function mdf_log_request(): void {
     if ( $visitor_type === 0 && $wants_markdown === 0 ) return;
 
     $status_code = http_response_code() ?: 200;
-    $ua_snippet  = mdf_ua_snippet( $ua );
 
     global $wpdb;
     $wpdb->insert(
         $wpdb->prefix . MDF_TABLE,
         [
-            'requested_at'  => current_time( 'mysql', true ),
-            'path'          => substr( $path, 0, 2048 ),
-            'method'        => substr( $method, 0, 10 ),
-            'visitor_type'  => $visitor_type,
-            'ua_snippet'    => $ua_snippet,
+            'requested_at'   => current_time( 'mysql', true ),
+            'path'           => substr( $path, 0, 2048 ),
+            'method'         => substr( $method, 0, 10 ),
+            'visitor_type'   => $visitor_type,
+            'ua_snippet'     => $ua_snippet,
             'wants_markdown' => $wants_markdown,
-            'status_code'   => (int) $status_code,
+            'status_code'    => (int) $status_code,
         ],
         [ '%s', '%s', '%s', '%d', '%s', '%d', '%d' ]
     );
 }
 
 /**
- * Classify UA string.
- * Returns: 3 = internal/monitor, 2 = known agent, 1 = likely agent (heuristic), 0 = human/unknown
+ * Classify a UA string and return a display snippet in one pass.
+ *
+ * Returns an array:
+ *   'type'    => int  — 3 = internal/monitor, 2 = known agent,
+ *                       1 = likely automated, 0 = human/unknown
+ *   'snippet' => string — matched fragment (type 2), first token of UA (types 1/3),
+ *                         or '(empty)' for blank UA. Empty string for type 0 (not logged).
+ *
+ * For type-2 hits the snippet is the matched fragment (title-cased), so the dashboard
+ * shows "Googlebot" / "Go-http-client" rather than the misleading "Mozilla" prefix
+ * that bot UAs commonly begin with.
  */
-function mdf_classify_ua( string $ua ): int {
-    if ( $ua === '' ) return 1; // empty UA — likely automated
+function mdf_classify_ua_with_snippet( string $ua ): array {
+    if ( $ua === '' ) {
+        return [ 'type' => 1, 'snippet' => '(empty)' ];
+    }
 
     $ua_lower = strtolower( $ua );
 
-    // Check internal/platform agents first — they get their own bucket, not counted as inbound agents
+    // Internal/platform agents — own bucket, excluded from agent counts & earnings
     $internal = unserialize( MDF_INTERNAL_AGENTS ); // phpcs:ignore
     foreach ( $internal as $fragment ) {
-        if ( strpos( $ua_lower, $fragment ) !== false ) return 3;
+        if ( strpos( $ua_lower, $fragment ) !== false ) {
+            return [ 'type' => 3, 'snippet' => mdf_ua_first_token( $ua ) ];
+        }
     }
 
+    // Known agents — store the matched fragment as the snippet
     $agents = unserialize( MDF_KNOWN_AGENTS ); // phpcs:ignore
-
     foreach ( $agents as $fragment ) {
-        if ( strpos( $ua_lower, $fragment ) !== false ) return 2;
+        if ( strpos( $ua_lower, $fragment ) !== false ) {
+            return [ 'type' => 2, 'snippet' => ucwords( $fragment, '-' ) ];
+        }
     }
 
-    // Heuristic signals: no common browser engine markers
+    // Heuristic: presence of a browser engine marker means human browser
     $browser_markers = [ 'mozilla/', 'webkit', 'gecko/', 'trident/', 'presto/' ];
     foreach ( $browser_markers as $marker ) {
-        if ( strpos( $ua_lower, $marker ) !== false ) return 0;
+        if ( strpos( $ua_lower, $marker ) !== false ) {
+            return [ 'type' => 0, 'snippet' => '' ];
+        }
     }
 
-    return 1; // no browser marker, not a known agent — likely automated
+    // No browser marker, no known agent — likely automated
+    return [ 'type' => 1, 'snippet' => mdf_ua_first_token( $ua ) ];
 }
 
 /**
- * Extract a short readable snippet from a UA string for display.
+ * Extract the first token from a UA string for display (up to first whitespace or slash).
+ * Used for type-1 and type-3 snippets where we don't have a matched fragment.
  */
-function mdf_ua_snippet( string $ua ): string {
-    if ( $ua === '' ) return '(empty)';
-    // First token up to whitespace or slash, max 80 chars
+function mdf_ua_first_token( string $ua ): string {
     preg_match( '/^[^\s\/]{1,80}/', $ua, $m );
     return $m[0] ?? substr( $ua, 0, 80 );
 }
