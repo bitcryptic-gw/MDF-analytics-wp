@@ -67,6 +67,10 @@ Switch between last 7, 30, or 90 days. Default is 30 days.
 
 Configure your preferred currency (sats via Lightning or USDC via Base) and the per-request rate used for estimated earnings calculations. The defaults are 1 sat and $0.001 USDC — broadly in line with MDF micropayment tier pricing.
 
+### llms.txt serving
+
+The plugin ships a curated `llms.txt` file in the plugin directory and serves it at the site root (`/llms.txt`). Site owners can edit the `llms.txt` file in the plugin directory to customise the content. Requests to `/llms.txt` appear in the analytics dashboard alongside other agent traffic, classified through the same visitor classifier.
+
 ---
 
 ## Agent classification
@@ -108,6 +112,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.1.3 | 2026-06-10 | Added: plugin serves curated `llms.txt` at the site root (`/llms.txt`). Supports GET/HEAD, conditional requests, and 1-hour caching. Requests logged through existing classifier. See [CHANGELOG.md](CHANGELOG.md). |
 | 0.1.2 | 2026-06-10 | Fix: known-agent snippets now show matched fragment (e.g. `Googlebot`) rather than raw UA prefix (`Mozilla`) |
 | 0.1.1 | 2026-06-09 | Fix: WordPress core, Jetpack, and uptime monitors correctly classified as internal/monitor and excluded from earnings |
 | 0.1.0 | 2026-06-08 | Initial release |

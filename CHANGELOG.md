@@ -11,6 +11,13 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.1.3] - 2026-06-10
+
+### Added
+- Plugin now serves a curated `llms.txt` at the site root (`/llms.txt`), sourced from the file shipped in the plugin directory. Supports GET/HEAD, `Last-Modified`/`If-Modified-Since` conditional requests, and 1-hour public caching. Requests are logged through the existing analytics classifier.
+
+---
+
 ## [0.1.2] — 2026-06-10
 
 ### Fixed
@@ -45,7 +52,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Phase 2 callout CTA in dashboard footer.
 - No IP addresses stored. No external HTTP requests. No dependencies beyond WordPress core.
 
-[Unreleased]: https://github.com/bitcryptic-gw/mdf-analytics-wp/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/bitcryptic-gw/mdf-analytics-wp/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/bitcryptic-gw/mdf-analytics-wp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/bitcryptic-gw/mdf-analytics-wp/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/bitcryptic-gw/mdf-analytics-wp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/bitcryptic-gw/mdf-analytics-wp/releases/tag/v0.1.0

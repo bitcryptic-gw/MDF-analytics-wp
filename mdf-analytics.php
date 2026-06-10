@@ -3,7 +3,7 @@
  * Plugin Name: MDF Analytics
  * Plugin URI:  https://github.com/bitcryptic-gw/mdf
  * Description: Tracks AI agent traffic and Accept: text/markdown requests. Phase 1 of MDF (Markdown First) ecosystem support — visibility dashboard with estimated earnings. No content modification, no payment processing.
- * Version:     0.1.2
+ * Version:     0.1.3
  * Author:      Gary Walker (BitCryptic™) & Graham Hall (Slepner)
  * Author URI:  https://bitcryptic.com
  * License:     MIT
@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 // Constants
 // ---------------------------------------------------------------------------
 
-define( 'MDF_VERSION',    '0.1.2' );
+define( 'MDF_VERSION',    '0.1.3' );
 define( 'MDF_TABLE',      'mdf_requests' );
 define( 'MDF_LOG_DAYS',   90 );       // retention window
 define( 'MDF_PURGE_FREQ', 'daily' );  // WP-Cron schedule
@@ -233,6 +233,58 @@ function mdf_classify_ua_with_snippet( string $ua ): array {
 function mdf_ua_first_token( string $ua ): string {
     preg_match( '/^[^\s\/]{1,80}/', $ua, $m );
     return $m[0] ?? substr( $ua, 0, 80 );
+}
+
+// ---------------------------------------------------------------------------
+// llms.txt serving — serves the plugin's llms.txt at site root
+// ---------------------------------------------------------------------------
+
+add_action( 'init', 'mdf_serve_llms_txt' );
+
+function mdf_serve_llms_txt(): void {
+    $uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+    $path = wp_parse_url( $uri, PHP_URL_PATH );
+
+    if ( $path !== '/llms.txt' ) {
+        return;
+    }
+
+    $method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : 'GET';
+    if ( ! in_array( $method, [ 'GET', 'HEAD' ], true ) ) {
+        return;
+    }
+
+    $file = plugin_dir_path( __FILE__ ) . 'llms.txt';
+
+    if ( ! file_exists( $file ) || ! is_readable( $file ) ) {
+        return;
+    }
+
+    $mtime  = filemtime( $file );
+    $size   = filesize( $file );
+    $if_mod = isset( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ) : '';
+
+    if ( $if_mod !== '' ) {
+        $if_mod_time = strtotime( $if_mod );
+        if ( $if_mod_time !== false && $if_mod_time >= $mtime ) {
+            status_header( 304 );
+            header( 'Cache-Control: public, max-age=3600' );
+            exit;
+        }
+    }
+
+    status_header( 200 );
+    header( 'Content-Type: text/plain; charset=utf-8' );
+    header( 'Content-Length: ' . $size );
+    header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $mtime ) . ' GMT' );
+    header( 'Cache-Control: public, max-age=3600' );
+
+    if ( $method === 'HEAD' ) {
+        exit;
+    }
+
+    readfile( $file );
+    exit;
 }
 
 // ---------------------------------------------------------------------------
