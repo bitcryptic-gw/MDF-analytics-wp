@@ -102,6 +102,18 @@ MDF (Markdown First) is an open web standards proposal that makes AI agents firs
 
 ---
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+| Version | Date | Summary |
+|---------|------|---------|
+| 0.1.2 | 2026-06-10 | Fix: known-agent snippets now show matched fragment (e.g. `Googlebot`) rather than raw UA prefix (`Mozilla`) |
+| 0.1.1 | 2026-06-09 | Fix: WordPress core, Jetpack, and uptime monitors correctly classified as internal/monitor and excluded from earnings |
+| 0.1.0 | 2026-06-08 | Initial release |
+
+---
+
 ## Requirements
 
 - WordPress 6.0+
